@@ -1,0 +1,169 @@
+:root {
+  color-scheme: light;
+  --paper: #f8efdd;
+  --panel: #fff9ed;
+  --line: #dbc9ad;
+  --ink: #392c27;
+  --muted: #6c584b;
+  --accent: #a64a32;
+  --tint: #f4dfcc;
+  --pixel: #c17a4b;
+  font: 14px/1.55 "Microsoft YaHei", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(#d9c5aa 1px, transparent 1px) 0 0 / 12px 12px, #ebddc8;
+  color: var(--ink);
+}
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(29px, 8vw, 40px); line-height: 1.2; }
+h2 { font-size: 1.3rem; line-height: 1.3; }
+h3 { font-size: 1.06rem; line-height: 1.4; }
+.shell {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 480px);
+  height: 100vh;
+  height: 100dvh;
+  margin: auto;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line), 0 12px 48px #6a4a362b;
+}
+#header:empty, #nav:empty { display: none; }
+#header {
+  padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.heading, .section-title { display: flex; align-items: center; gap: 9px; }
+.heading strong { flex: 1; font-size: 1.08rem; }
+.heading > span { color: var(--accent); font-size: .83rem; font-weight: 750; white-space: nowrap; }
+.stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 9px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+.stats.career-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat { min-width: 0; padding: 3px 7px 4px; background: #faf0df; }
+.stat > span { display: block; color: var(--muted); font-size: .72rem; }
+.stat b { display: block; overflow-wrap: anywhere; font-size: .96rem; line-height: 1.35; }
+.stat:first-child b { color: var(--accent); }
+.notice { margin-top: 6px; color: #5b5031; font-size: .8rem; }
+#screen { flex: 1; min-height: 0; overflow: auto; padding: 14px; scrollbar-color: var(--line) transparent; }
+#screen[data-page="social"] { --accent: #96516b; --tint: #f3dfe7; --pixel: #ae6285; }
+#screen[data-page="sports"] { --accent: #3a677d; --tint: #dfebf0; --pixel: #4b87a1; }
+#screen[data-page="title"] { display: grid; align-items: center; }
+#nav {
+  display: grid;
+  grid-template-columns: repeat(var(--tab-count, 4), minmax(0, 1fr));
+  gap: 4px;
+  padding: 5px 9px calc(5px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.nav-button {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-height: 49px;
+  padding: 4px 1px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: .78rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.nav-button[aria-current="page"] { border-color: var(--line); background: var(--tint); color: var(--accent); }
+.pixel-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  background-color: currentColor;
+  mask: url("./assets/pixel-icons.png") no-repeat var(--icon-offset, 0) 0 / 114px 19px;
+  image-rendering: pixelated;
+}
+.icon-social { --icon-offset: -19px; }
+.icon-sports { --icon-offset: -38px; }
+.icon-premises { --icon-offset: -57px; }
+.icon-ledger { --icon-offset: -76px; }
+.icon-settings { --icon-offset: -95px; }
+.heading .pixel-icon, .section-title .pixel-icon, .cover-copy .pixel-icon { color: var(--accent); }
+.hero {
+  position: relative;
+  height: clamp(116px, 33vw, 165px);
+  margin-bottom: 15px;
+  border: 1px solid #a77b59;
+  box-shadow: 0 3px 0 var(--line);
+  background: url("./assets/cafe.png") center 57% / cover, #d2af89;
+}
+.hero span {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  padding: 3px 8px;
+  border: 1px solid #d5a574;
+  background: #fff2db;
+  color: var(--ink);
+  font-size: .82rem;
+  font-weight: 750;
+}
+.cover { width: 100%; max-width: 420px; margin: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 4px 4px 0 #ddc7a8; }
+.cover .hero { height: clamp(174px, 52vw, 230px); margin: 0; border: 0; border-bottom: 3px solid var(--pixel); box-shadow: none; }
+.cover-copy { padding: 20px 17px 18px; }
+.cover-copy .pixel-icon { margin-bottom: 5px; }
+.cover p { margin: 8px 0 18px; color: var(--muted); }
+.cover .btn { width: 100%; }
+.section-title { margin: 0 0 5px; }
+.hint { margin: 0 0 11px; }
+.card {
+  padding: 11px;
+  margin: 9px 0;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--pixel);
+  background: var(--panel);
+  box-shadow: 0 2px 0 #e6d5bc;
+}
+.card p, .hint, dialog p { color: var(--muted); font-size: .86rem; }
+.card p { margin: 3px 0 6px; }
+.activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.price { padding: 2px 7px; background: var(--tint); color: var(--accent); font-size: .81rem; font-weight: 750; white-space: nowrap; }
+.card .btn, dialog .btn { width: 100%; margin-top: 7px; }
+.btn, select {
+  min-height: 44px;
+  padding: 6px 9px;
+  border: 1px solid #bf9f7e;
+  background: #f7e7cf;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn.primary { border-color: var(--accent); background: var(--accent); color: #fffaf2; }
+.btn:hover:not(:disabled), select:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: .55; cursor: default; }
+.line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid #e9dbc7; }
+.line span { color: var(--muted); font-size: .84rem; }
+.line b { text-align: right; font-size: .9rem; }
+form, label { display: grid; gap: 5px; }
+form { gap: 8px; }
+.check { display: flex; align-items: center; gap: 8px; min-height: 38px; }
+input { accent-color: var(--accent); }
+input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; }
+progress { width: 100%; margin-top: 8px; accent-color: var(--accent); }
+dialog { width: min(340px, calc(100% - 24px)); border: 2px solid var(--accent); background: var(--panel); color: var(--ink); box-shadow: 4px 4px 0 #44291a44; }
+dialog::backdrop { background: #35282190; }
+@media (max-width: 340px) {
+  #header, #screen { padding-inline: 10px; }
+  .stats b { font-size: .9rem; }
+}
