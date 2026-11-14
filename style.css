@@ -49,6 +49,7 @@ h3 { font-size: 1.06rem; line-height: 1.4; }
   background: var(--line);
 }
 .stats.career-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stats.career-stats .stat:first-child { grid-column: span 3; }
 .stat { min-width: 0; padding: 3px 7px 4px; background: #faf0df; }
 .stat > span { display: block; color: var(--muted); font-size: .72rem; }
 .stat b { display: block; overflow-wrap: anywhere; font-size: .96rem; line-height: 1.35; }
@@ -96,6 +97,14 @@ h3 { font-size: 1.06rem; line-height: 1.4; }
 .icon-premises { --icon-offset: -57px; }
 .icon-ledger { --icon-offset: -76px; }
 .icon-settings { --icon-offset: -95px; }
+.icon-phone { mask: none; width: 12px; height: 17px; border: 2px solid currentColor; background: transparent; position: relative; }
+.icon-phone::after { content: ""; position: absolute; bottom: 1px; left: 3px; width: 2px; height: 2px; background: currentColor; }
+.daily-actions, .phone-trades { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.daily-actions .btn { font-size: .82rem; }
+.phone-apps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 8px 0 12px; }
+.phone-apps .btn { padding-inline: 2px; }
+.phone-apps [aria-pressed="true"] { background: var(--accent); color: #fffaf2; }
+.phone-trades .btn { flex: 1 0 40%; width: auto; }
 .heading .pixel-icon, .section-title .pixel-icon, .cover-copy .pixel-icon { color: var(--accent); }
 .hero {
   position: relative;

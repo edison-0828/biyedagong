@@ -10,27 +10,37 @@ export const careerStarted = game => game.week > 1;
 export const canTryStall = game => game.job !== 'starter' || game.trials > 0;
 
 export const shifts = {
-  study: { label: '认真上班', bonus: 0, energy: -12, gains: { skill: 1 }, detail: '手艺 +1，消耗 12 体力。' },
-  overtime: { label: '加班攒钱', bonus: 650, energy: -23, gains: { skill: 1 }, detail: '手艺 +1，额外赚 ¥650，消耗 23 体力。' },
-  rest: { label: '下班就休息', bonus: 0, energy: 29, detail: '恢复 29 体力。' },
-  stall: { label: '周末摆摊', bonus: 0, energy: -16, detail: '花 ¥320 买原料，试卖并认识熟客。' },
+  study: { label: '认真上班', bonus: 0, energy: -12, hunger: 12, gains: { skill: 1 }, detail: '手艺 +1。' },
+  overtime: { label: '加班攒钱', bonus: 650, energy: -23, hunger: 20, gains: { skill: 1 }, detail: '手艺 +1，额外赚 ¥650。' },
+  stall: { label: '周末摆摊', bonus: 0, energy: -16, hunger: 15, detail: '花 ¥320 买原料，试卖并认识熟客。' },
 };
 
 export const contacts = {
-  mentor: { label: '陈师傅', detail: '约师傅喝咖啡，聊聊店里的事。', fee: 80, energy: -9, gains: { social: 1 }, affinity: 8 },
-  classmate: { label: '林晓', detail: '和同学吃晚饭，聊聊毕业后的生活。', fee: 120, energy: -10, gains: { social: 1 }, affinity: 12 },
-  owner: { label: '许老板', detail: '请街坊店主吃饭，聊聊附近的生意。', fee: 220, energy: -13, gains: { social: 2 }, affinity: 10 },
+  mentor: { label: '陈师傅', detail: '约师傅喝咖啡，聊聊店里的事。', fee: 80, energy: -9, hunger: 10, gains: { social: 1 }, affinity: 8 },
+  classmate: { label: '林晓', detail: '和同学逛市集，聊聊毕业后的生活。', fee: 120, energy: -10, hunger: 11, gains: { social: 1 }, affinity: 12 },
+  owner: { label: '许老板', detail: '请街坊店主喝茶，聊聊附近的生意。', fee: 220, energy: -13, hunger: 14, gains: { social: 2 }, affinity: 10 },
 };
 
 export const exercises = {
-  run: { label: '公园慢跑', detail: '沿河跑一圈。', fee: 0, energy: 20, gains: { fitness: 1, health: 3 } },
-  gym: { label: '健身房训练', detail: '买一次训练票，做力量和有氧。', fee: 160, energy: 12, gains: { fitness: 2, health: 6 } },
+  run: { label: '公园慢跑', detail: '沿河跑一圈。', fee: 0, energy: -14, hunger: 16, gains: { fitness: 1, health: 3 } },
+  gym: { label: '健身房训练', detail: '买一次训练票，做力量和有氧。', fee: 160, energy: -22, hunger: 22, gains: { fitness: 2, health: 6 } },
 };
 
 export function weekActivity(plan) {
   if (plan.contact) return contacts[plan.contact];
   if (plan.exercise) return exercises[plan.exercise];
+  if (plan.id === 'rest') return { label: '休息', energy: 29, hunger: 0 }; // Older saved plans.
   return shifts[plan.id];
+}
+
+export const shopWorkload = { energy: -18, hunger: 17 };
+export const energyChange = (game, plan, activity = weekActivity(plan)) =>
+  activity.energy + (plan.exercise && game.items.shoes ? 5 : 0);
+
+export function needsReason(game, energy, hunger) {
+  if (game.energy + energy < 0) return '体力不足，先休息到下一日。';
+  if (game.hunger + hunger > 100) return '太饿了，先去手机点外卖。';
+  return '';
 }
 
 export function activityReason(game, plan) {
@@ -38,8 +48,7 @@ export function activityReason(game, plan) {
   const activity = weekActivity(plan);
   if (!activity || game.shop || !careerStarted(game)) return '当前无法安排这项活动。';
   if (game.cash < activity.fee) return '现金不足。';
-  if (game.energy + activity.energy < 0) return '体力不足，可以先运动或休息。';
-  return '';
+  return needsReason(game, energyChange(game, plan, activity), activity.hunger);
 }
 
 export function jobReason(game, id) {
@@ -72,7 +81,8 @@ export const menus = {
 
 const livingCost = 880;
 export const newGame = () => ({
-  week: 1, cash: 950, energy: 70, health: 75, skill: 0, social: 0, fitness: 0, relationships: {},
+  week: 1, day: 1, cash: 950, energy: 70, hunger: 15, health: 75, skill: 0, social: 0, fitness: 0,
+  relationships: {}, items: {}, shares: {},
   job: 'starter', regulars: 0, trials: 0, shop: null, ledger: [], last: null,
 });
 
@@ -81,9 +91,8 @@ export function actionReason(game, id) {
   if (!shift || game.shop) return '当前无法安排这项活动。';
   if (!careerStarted(game) && id !== 'study') return '先完成第一周工作。';
   if (id === 'stall' && !canTryStall(game)) return '成为独立咖啡师后开放试卖。';
-  if (game.energy + shift.energy < 0) return '体力不足，先休息一周。';
   if (id === 'stall' && game.cash < 320) return '摆摊需要先准备 ¥320 原料费。';
-  return '';
+  return needsReason(game, shift.energy, shift.hunger);
 }
 
 export function leaseReason(game, id) {
@@ -95,7 +104,7 @@ export function leaseReason(game, id) {
   return '';
 }
 
-function record(game, lines, label, amount) {
+export function record(game, lines, label, amount) {
   lines.push({ label, amount });
   game.cash += amount;
 }
@@ -124,6 +133,8 @@ export function settleWeek(game, plan) {
   const lines = [];
   const week = game.week;
   if (game.shop) {
+    game.energy = Math.max(0, game.energy + shopWorkload.energy);
+    game.hunger = Math.min(100, game.hunger + shopWorkload.hunger);
     const quote = weeklyQuote(game, plan.menu, plan.price, plan.partTime);
     record(game, lines, '咖啡店营业额', quote.sales * quote.price);
     record(game, lines, '食材与耗材', -quote.sales * quote.cost);
@@ -136,7 +147,8 @@ export function settleWeek(game, plan) {
     const shift = weekActivity(plan);
     record(game, lines, currentJob(game).name + '工资', currentJob(game).wage + (shift.bonus ?? 0));
     if (shift.fee) record(game, lines, (plan.contact ? '社交 · ' : '运动 · ') + shift.label, -shift.fee);
-    game.energy = Math.min(100, game.energy + shift.energy);
+    game.energy = Math.max(0, Math.min(100, game.energy + energyChange(game, plan, shift)));
+    game.hunger = Math.min(100, game.hunger + shift.hunger);
     for (const [key, gain] of Object.entries(shift.gains ?? {})) {
       game[key] = key === 'health' ? Math.min(100, game[key] + gain) : game[key] + gain;
     }
@@ -156,4 +168,5 @@ export function settleWeek(game, plan) {
   record(game, lines, '房租和生活费', -livingCost);
   game.ledger.unshift({ week, label: game.shop ? '营业结算' : '打工结算', lines });
   game.week++;
+  game.day += 7;
 }

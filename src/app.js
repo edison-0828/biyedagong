@@ -1,12 +1,14 @@
-import { actionReason, activityReason, canTryStall, careerStarted, changeJob, contacts, currentJob, exercises, jobReason, jobs, leaseReason, leases, menus, newGame, openShop, settleWeek, shifts, skillNames, weekActivity, weeklyQuote } from './business.js';
+import { actionReason, activityReason, canTryStall, careerStarted, changeJob, contacts, currentJob, energyChange, exercises, jobReason, jobs, leaseReason, leases, menus, needsReason, newGame, openShop, settleWeek, shifts, shopWorkload, skillNames, weekActivity, weeklyQuote } from './business.js';
 import { createGameClock, weekDuration } from './game-clock.js';
 import { applyAudioSettings, playEffect, readAudioSettings, refreshAudioVisibility, unlockAudio, writeAudioSettings } from './audio.js';
 import { button, card, confirm, dismiss, el, money, selectChoice } from './ui.js';
+import { nextDay, phoneScreen, restRecovery, usePhone } from './phone.js';
 
 const saveKey = 'after-graduation-v1';
 let game = newGame();
 let plan = null;
 let tab = 'work';
+let phoneApp = 'contacts';
 let scene = 'title';
 let status = '';
 const sound = readAudioSettings();
@@ -15,6 +17,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(saveKey));
   if (saved?.game && Array.isArray(saved.game.ledger)) {
     game = { ...newGame(), ...saved.game };
+    game.day = saved.game.day ?? 1 + (game.week - 1) * 7;
     plan = saved.plan;
     if (plan?.id === 'socialize') plan = { contact: 'mentor' };
     if (plan?.id === 'exercise') plan = { exercise: 'run' };
@@ -26,6 +29,7 @@ const line = (label, value) => '<div class="line"><span>' + label + '</span><b>'
 const icon = name => '<i class="pixel-icon icon-' + name + '" aria-hidden="true"></i>';
 const sectionTitle = (name, title) => '<h2 class="section-title">' + icon(name) + title + '</h2>';
 const stat = (label, value) => '<span class="stat"><span>' + label + '</span><b>' + value + '</b></span>';
+const workload = (energy, hunger) => line('体力 / 饥饿', energy + ' / +' + hunger);
 
 function persist() {
   try { localStorage.setItem(saveKey, JSON.stringify({ game, plan })); }
@@ -72,7 +76,8 @@ function work() {
   ).map(([id, shift]) => {
     const reason = actionReason(game, id);
     return card('<h3>' + shift.label + '</h3><p>' + shift.detail + '</p>' +
-      line('本周工资', money(currentJob(game).wage + shift.bonus)) + (reason ? '<p class="muted">' + reason + '</p>' : button('安排本周', 'work-' + id)));
+      line('本周工资', money(currentJob(game).wage + shift.bonus)) + workload(shift.energy, shift.hunger) +
+      (reason ? '<p class="muted">' + reason + '</p>' : button('安排本周', 'work-' + id)));
   }).join('');
   const summary = game.last?.kind === 'stall' ? card('<h3>最近一次试卖</h3>' +
     line('卖出', game.last.sales + ' 杯') + line('试卖净收入', money(game.last.profit))) : '';
@@ -92,13 +97,14 @@ function activityScreen(kind, options) {
         (activity.fee ? money(activity.fee) : '免费') + '</span></div><p>' + activity.detail + '</p>' +
         (isSocial ? line('当前好感 / 本次增加', (game.relationships[id] ?? 0) + '/100 · +' + activity.affinity) +
           line('沟通', '+' + gains.social) : line('体能 / 健康', '+' + gains.fitness + ' / +' + gains.health)) +
-        line('体力', (activity.energy > 0 ? '+' : '') + activity.energy) +
+        workload(energyChange(game, { [kind]: id }, activity), activity.hunger) +
         (reason ? '<p>' + reason + '</p>' : button(isSocial ? '约见' + activity.label : '安排训练', kind + '-' + id, true)));
     }).join('');
 }
 
 function shop() {
   const lease = leases[game.shop.lease];
+  const needs = needsReason(game, shopWorkload.energy, shopWorkload.hunger);
   const result = game.last?.kind === 'shop' ? card('<h3>' + (game.shop.weeks === 1 && game.last.profit >= 0 ? '第一笔店租已靠营业赚回' : '上周营业') +
     '</h3>' + line('售出', game.last.sales + ' 份') + line('店面净收益', money(game.last.profit)) +
     (game.last.demand > game.last.capacity ? '<p>有 ' + (game.last.demand - game.last.capacity) + ' 位顾客没排到。</p>' : '')) : '';
@@ -108,7 +114,8 @@ function shop() {
       menu.name + (game.skill < menu.skill ? ' · 手艺 ' + menu.skill + ' 解锁' : '') + '</option>').join('') +
       '</select></label><label>定价<select name="price"><option value="standard">标准价</option><option value="value">亲民价</option><option value="premium">高价</option></select></label>' +
       '<label class="check"><input type="checkbox" name="partTime">兼做兼职 · 多赚 ¥950，少接部分顾客</label>' +
-      '<div id="shop-quote"></div><button class="btn primary" type="submit">开始营业</button></form>') +
+      '<div id="shop-quote"></div>' + workload(shopWorkload.energy, shopWorkload.hunger) +
+      (needs ? '<p>' + needs + '</p>' : '<button class="btn primary" type="submit">开始营业</button>') + '</form>') +
     card('<h3>设备</h3><p>每次升级增加 20 份周接待量。</p>' +
       (game.shop.equipment >= 2 ? '<p>设备已升满。</p>' :
         game.cash < 2700 ? disabled('升级 ¥1,800 · 需预留 ¥900') : button('升级设备 · ¥1,800', 'upgrade')));
@@ -135,14 +142,6 @@ function premises() {
   }).join('');
 }
 
-function ledger() {
-  return sectionTitle('ledger', '经营账本') + (game.ledger.length ? game.ledger.map(entry =>
-    card('<h3>第 ' + entry.week + ' 周 · ' + entry.label + '</h3>' +
-      entry.lines.map(entry => line(entry.label, money(entry.amount))).join('') +
-      line('合计', money(entry.lines.reduce((sum, entry) => sum + entry.amount, 0))))).join('') :
-    card('<p>完成第一周后，收入和开支会记在这里。</p>'));
-}
-
 function settings() {
   return sectionTitle('settings', '设置') + card('<label>总音量 <output id="volume-value">' + sound.volume +
     '%</output><input id="volume" type="range" min="0" max="100" value="' + sound.volume + '"></label>' +
@@ -158,23 +157,27 @@ function render() {
     el('header').innerHTML = '';
     el('nav').innerHTML = '';
     screen.innerHTML = '<section class="cover"><div class="hero"></div><div class="cover-copy">' +
-      icon('work') + '<h1>毕业后开店</h1><p>先打工学手艺，攒钱开一间自己的咖啡店。</p>' +
+      icon('work') + '<h1>打工攒个店</h1><p>先打工学手艺，攒钱开一间自己的咖啡店。</p>' +
       button(hasSave() ? '继续经营' : '开始游戏', 'enter', true) + '</div></section>';
     return;
   }
-  el('header').innerHTML = '<div class="heading">' + icon('work') + '<strong>毕业后开店</strong><span>第 ' + game.week + ' 周</span></div>' +
+  el('header').innerHTML = '<div class="heading">' + icon('work') + '<strong>打工攒个店</strong><span>第 ' + game.week + ' 周 · 第 ' + game.day + ' 日</span></div>' +
     '<div class="stats' + (game.shop ? '' : ' career-stats') + '">' +
-    stat('现金', money(game.cash)) + stat('体力', game.energy) + stat('手艺', game.skill) +
+    stat('现金', money(game.cash)) + stat('体力', game.energy) + stat('饥饿', game.hunger + '/100') + stat('手艺', game.skill) +
     (game.shop ? stat('熟客', game.regulars) : stat('沟通', game.social) + stat('体能', game.fitness) + stat('健康', game.health)) +
     '</div>' +
+    '<div class="daily-actions">' + (plan || game.energy === 100 ? disabled('下一日') : button('下一日 · 恢复 ' +
+      Math.min(100 - game.energy, restRecovery(game)) + ' 体力', 'nextday')) +
+    (game.hunger >= 60 ? button('去点外卖', 'food') : '') + '</div>' +
     (status ? '<p class="notice" role="status">' + status + '</p>' : '');
   const tabs = [['work', game.shop ? '营业' : '打工'],
     ...(game.shop ? [['premises', '店面']] : careerStarted(game) ? [['social', '社交'], ['sports', '运动']] : []),
-    ['ledger', '账本'], ['settings', '设置']];
+    ['phone', '手机'], ['settings', '设置']];
   el('nav').innerHTML = tabs.map(([id, label]) => '<button type="button" class="nav-button" data-action="tab-' + id + '"' +
     (tab === id ? ' aria-current="page"' : '') + '>' + icon(id) + '<span>' + label + '</span></button>').join('');
   el('nav').style.setProperty('--tab-count', tabs.length);
-  screen.innerHTML = ({work,careers,premises,ledger,settings,
+  screen.innerHTML = ({work,careers,premises,settings,
+    phone: () => phoneScreen(game, phoneApp, Boolean(plan), !game.shop && careerStarted(game)),
     social: () => activityScreen('contact', contacts), sports: () => activityScreen('exercise', exercises)})[tab]();
   updateQuote();
 }
@@ -201,6 +204,31 @@ document.addEventListener('click', event => {
   unlockAudio().then(ready => { if (ready) playEffect(action === 'preview' ? 'preview' : 'click'); });
   if (action === 'enter') { scene = 'game'; clock.start(); render(); }
   if (action === 'tab') { tab = value; el('screen').scrollTop = 0; render(); }
+  if (action === 'food' || action === 'phoneapp') {
+    phoneApp = action === 'food' ? 'delivery' : value;
+    tab = 'phone';
+    el('screen').scrollTop = 0;
+    render();
+  }
+  if (action === 'nextday' && !plan && game.energy < 100) {
+    nextDay(game);
+    status = '休息了一晚，体力已恢复。';
+    persist();
+    render();
+  }
+  if (action === 'meet' && !game.shop && careerStarted(game)) {
+    tab = 'social';
+    render();
+    el('screen').querySelector('[data-action="contact-' + value + '"]')?.focus();
+  }
+  if (['meal', 'item', 'buy', 'sell'].includes(action) && !plan) {
+    const result = usePhone(game, action, value);
+    if (result) {
+      status = result;
+      persist();
+      render();
+    }
+  }
   if (action === 'work' && !plan && !actionReason(game, value)) queue({ id: value });
   if (action === 'contact' || action === 'exercise') {
     const activity = { [action]: value };
@@ -235,7 +263,7 @@ document.addEventListener('click', event => {
     render();
   }
   if (action === 'restart') confirm('重新开始？','当前试玩进度会清空。', () => {
-    game = newGame(); plan = null; status = ''; tab = 'work';
+    game = newGame(); plan = null; status = ''; tab = 'work'; phoneApp = 'contacts';
     clock.resetElapsed(); clock.resume(); persist(); render();
   });
   if (action === 'choice') selectChoice(Number(value));
@@ -245,7 +273,7 @@ document.addEventListener('click', event => {
 document.addEventListener('submit', event => {
   if (event.target.id !== 'shop-plan') return;
   event.preventDefault();
-  queue(readShopPlan(event.target));
+  if (!needsReason(game, shopWorkload.energy, shopWorkload.hunger)) queue(readShopPlan(event.target));
 });
 document.addEventListener('change', event => {
   if (event.target.closest('#shop-plan')) updateQuote();
